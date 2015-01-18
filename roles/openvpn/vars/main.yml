@@ -1,0 +1,11 @@
+---
+vpn_subnet:
+- net: "192.168.189.0"
+  mask: "255.255.255.0"
+
+push_routes:
+- net: "172.16.17.0"
+  mask: "255.255.255.0"
+
+vpn_users:
+- marius

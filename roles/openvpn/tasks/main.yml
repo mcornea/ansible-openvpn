@@ -1,0 +1,35 @@
+---
+- name: install openvpn
+  yum: name=openvpn state=installed
+
+- name: install easy-rsa
+  yum: name=easy-rsa state=installed
+
+- name: copy easy-rsa 
+  copy: src=/usr/share/easy-rsa/2.0/ dest=/etc/openvpn/ mode="u+rwx" force=no
+
+- name: generate server keys
+  shell: cd /etc/openvpn/; source ./vars; ./clean-all; ./pkitool --initca; ./pkitool --server server; ./build-dh
+  args: 
+    chdir: /etc/openvpn/
+    creates: keys
+
+- name: generate user certs
+  shell: cd /etc/openvpn/; if [ -f keys/{{ item }}.crt ]; then exit 123; else  source ./vars; ./pkitool {{ item }}; fi
+  with_items: vpn_users
+  register: user_result
+  changed_when: "user_result.rc != 123"
+  failed_when: "'TXT_DB error' in user_result.stderr"
+
+- name: fix selinux context of files
+  shell: restorecon -Rv /etc/openvpn
+  register: restore_result
+  changed_when: "restore_result.rc !=0"
+
+- name: create configuration file
+  template: src=server.j2 dest='/etc/openvpn/server.conf'
+  notify: 
+    - restart openvpn
+
+- name: enable openvpn
+  service: name=openvpn@server.service state=started enabled=yes
